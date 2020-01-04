@@ -121,16 +121,17 @@ static void forbiddenscan_process_packet(const u_char *packet,
 	struct tcphdr *tcp =
 	    (struct tcphdr *)((char *)ip_hdr + 4 * ip_hdr->ip_hl);
 	char *payload = (char *)(&tcp[1]);
+	int mylen = ntohs(ip_hdr->ip_len);
+printf("Len: %d\n", mylen);
 
 	fs_add_uint64(fs, "sport", (uint64_t)ntohs(tcp->th_sport));
 	fs_add_uint64(fs, "dport", (uint64_t)ntohs(tcp->th_dport));
 	fs_add_uint64(fs, "seqnum", (uint64_t)ntohl(tcp->th_seq));
 	fs_add_uint64(fs, "acknum", (uint64_t)ntohl(tcp->th_ack));
 	fs_add_uint64(fs, "window", (uint64_t)ntohs(tcp->th_win));
-	fs_add_uint64(fs, "len", (uint64_t)len - ETHER_LEN);
+	fs_add_uint64(fs, "len", (uint64_t)mylen);
 	fs_add_uint64(fs, "flags", (uint64_t)tcp->th_flags);
 	fs_add_uint64(fs, "ipid", (uint64_t)ntohs(ip_hdr->ip_id));
-
 
 	fs_add_string(fs, "classification", "", 0);
 	//fs_add_string(fs, "classification", (char *)payload, 0);
