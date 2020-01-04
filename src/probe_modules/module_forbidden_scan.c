@@ -13,8 +13,8 @@
 #include "packet.h"
 #include "module_tcp_synscan.h"
 
-#define PAYLOAD "GET / HTTP/1.1\r\nHost: ign.com\r\n\r\n"
-#define PAYLOAD_LEN strlen(PAYLOAD)
+#define PAYLOAD "GET / HTTP/1.1\r\nHost: freedomhouse.org\r\n\r\n"
+#define PAYLOAD_LEN strlen(PAYLOAD) 
 #define TOTAL_LEN sizeof(struct ip) + sizeof(struct tcphdr) + PAYLOAD_LEN
 #define ETHER_LEN sizeof(struct ether_header)
 
@@ -155,7 +155,7 @@ static fielddef_t myfields[] = {
 
 probe_module_t module_forbidden_scan = {
     .name = "forbidden_scan",
-    .packet_length = 91,
+    .packet_length = TOTAL_LEN + ETHER_LEN,
     .pcap_filter = "tcp", 
     .pcap_snaplen = 96,
     .port_args = 1,
