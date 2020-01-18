@@ -13,7 +13,12 @@
 #include "packet.h"
 #include "module_tcp_synscan.h"
 
-#define PAYLOAD "GET / HTTP/1.1\r\nHost: freedomhouse.org\r\n\r\n"
+#ifndef HOST
+#define HOST "freedomhouse.org"
+#endif
+//#define TCP_FLAGS TH_PUSH | TH_ACK
+#define TCP_FLAGS TH_SYN
+#define PAYLOAD "GET / HTTP/1.1\r\nHost: " HOST "\r\n\r\n"
 #define PAYLOAD_LEN strlen(PAYLOAD) 
 #define TOTAL_LEN sizeof(struct ip) + sizeof(struct tcphdr) + PAYLOAD_LEN
 #define ETHER_LEN sizeof(struct ether_header)
@@ -40,7 +45,7 @@ static int forbiddenscan_init_perthread(void *buf, macaddr_t *src, macaddr_t *gw
 	make_ip_header(ip_header, IPPROTO_TCP, len);
 	struct tcphdr *tcp_header = (struct tcphdr *)(&ip_header[1]);
 
-	make_tcp_header(tcp_header, dst_port, TH_PUSH | TH_ACK);
+	make_tcp_header(tcp_header, dst_port, TCP_FLAGS);
 	char *payload = (char *)(&tcp_header[1]);
 	memcpy(payload, PAYLOAD, PAYLOAD_LEN);
 	return EXIT_SUCCESS;
@@ -122,7 +127,6 @@ static void forbiddenscan_process_packet(const u_char *packet,
 	    (struct tcphdr *)((char *)ip_hdr + 4 * ip_hdr->ip_hl);
 	char *payload = (char *)(&tcp[1]);
 	int mylen = ntohs(ip_hdr->ip_len);
-printf("Len: %d\n", mylen);
 
 	fs_add_uint64(fs, "sport", (uint64_t)ntohs(tcp->th_sport));
 	fs_add_uint64(fs, "dport", (uint64_t)ntohs(tcp->th_dport));
