@@ -17,10 +17,11 @@
 #define HOST "freedomhouse.org"
 #endif
 //#define TCP_FLAGS TH_PUSH | TH_ACK
-#define TCP_FLAGS TH_SYN
+#define TCP_FLAGS TH_PUSH | TH_ACK
 #define PAYLOAD "GET / HTTP/1.1\r\nHost: " HOST "\r\n\r\n"
 #define PAYLOAD_LEN strlen(PAYLOAD) 
-#define TOTAL_LEN sizeof(struct ip) + sizeof(struct tcphdr) + PAYLOAD_LEN
+#define TOTAL_LEN sizeof(struct ip) + sizeof(struct tcphdr)
+#define TOTAL_LEN_PAYLOAD sizeof(struct ip) + sizeof(struct tcphdr) + PAYLOAD_LEN
 #define ETHER_LEN sizeof(struct ether_header)
 
 probe_module_t module_tcp_forbiddenscan;
@@ -28,12 +29,27 @@ static uint32_t num_ports;
 
 static int forbiddenscan_global_initialize(struct state_conf *state)
 {
-    printf("Starting module. Packet out size: %d\n", TOTAL_LEN);
+    printf("Starting module. Packet out size: %d\n", TOTAL_LEN_PAYLOAD + TOTAL_LEN);
 	num_ports = state->source_port_last - state->source_port_first + 1;
 	return EXIT_SUCCESS;
 }
 
 static int forbiddenscan_init_perthread(void *buf, macaddr_t *src, macaddr_t *gw,
+				     port_h_t dst_port,
+				     __attribute__((unused)) void **arg_ptr)
+{
+	memset(buf, 0, MAX_PACKET_SIZE);
+	struct ether_header *eth_header = (struct ether_header *)buf;
+	make_eth_header(eth_header, src, gw);
+	struct ip *ip_header = (struct ip *)(&eth_header[1]);
+	uint16_t len = htons(sizeof(struct ip) + sizeof(struct tcphdr));
+	make_ip_header(ip_header, IPPROTO_TCP, len);
+	struct tcphdr *tcp_header = (struct tcphdr *)(&ip_header[1]);
+
+	make_tcp_header(tcp_header, dst_port, TH_SYN);
+	return EXIT_SUCCESS;
+}
+static int forbiddenscan_init_perthread2(void *buf, macaddr_t *src, macaddr_t *gw,
 				     port_h_t dst_port,
 				     __attribute__((unused)) void **arg_ptr)
 {
@@ -52,6 +68,37 @@ static int forbiddenscan_init_perthread(void *buf, macaddr_t *src, macaddr_t *gw
 }
 
 static int forbiddenscan_make_packet(void *buf, UNUSED size_t *buf_len,
+				  ipaddr_n_t src_ip, ipaddr_n_t dst_ip, uint8_t ttl,
+				  uint32_t *validation, int probe_num,
+				  UNUSED void *arg)
+{
+	struct ether_header *eth_header = (struct ether_header *)buf;
+	struct ip *ip_header = (struct ip *)(&eth_header[1]);
+	struct tcphdr *tcp_header = (struct tcphdr *)(&ip_header[1]);
+    // Subtract one for the SYN packet
+	uint32_t tcp_seq = ntohl(htonl(validation[0]) - 1);
+	uint32_t tcp_ack = 0;
+	    //validation[2]; // get_src_port() below uses validation 1 internally.
+
+	ip_header->ip_src.s_addr = src_ip;
+	ip_header->ip_dst.s_addr = dst_ip;
+	ip_header->ip_ttl = ttl;
+
+	tcp_header->th_sport =
+	    htons(get_src_port(num_ports, probe_num, validation));
+	tcp_header->th_seq = tcp_seq;
+	tcp_header->th_ack = tcp_ack;
+	tcp_header->th_sum = 0;
+	tcp_header->th_sum =
+	    tcp_checksum(sizeof(struct tcphdr), ip_header->ip_src.s_addr,
+			 ip_header->ip_dst.s_addr, tcp_header);
+
+	ip_header->ip_sum = 0;
+	ip_header->ip_sum = zmap_ip_checksum((unsigned short *)ip_header);
+
+	return EXIT_SUCCESS;
+}
+static int forbiddenscan_make_packet2(void *buf, UNUSED size_t *buf_len,
 				  ipaddr_n_t src_ip, ipaddr_n_t dst_ip, uint8_t ttl,
 				  uint32_t *validation, int probe_num,
 				  UNUSED void *arg)
@@ -161,12 +208,15 @@ static fielddef_t myfields[] = {
 probe_module_t module_forbidden_scan = {
     .name = "forbidden_scan",
     .packet_length = TOTAL_LEN + ETHER_LEN,
+    .packet2_length = TOTAL_LEN_PAYLOAD + ETHER_LEN,
     .pcap_filter = "tcp", 
     .pcap_snaplen = 96,
     .port_args = 1,
     .global_initialize = &forbiddenscan_global_initialize,
     .thread_initialize = &forbiddenscan_init_perthread,
+    .thread_initialize2 = &forbiddenscan_init_perthread2,
     .make_packet = &forbiddenscan_make_packet,
+    .make_packet2 = &forbiddenscan_make_packet2,
     .print_packet = &synscan_print_packet,
     .process_packet = &forbiddenscan_process_packet,
     .validate_packet = &forbiddenscan_validate_packet,
