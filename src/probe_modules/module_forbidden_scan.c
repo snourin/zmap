@@ -14,7 +14,7 @@
 #include "module_tcp_synscan.h"
 
 #ifndef HOST
-#define HOST "freedomhouse.org"
+#define HOST "xnxx.com"
 #endif
 //#define TCP_FLAGS TH_PUSH | TH_ACK
 #define TCP_FLAGS TH_PUSH | TH_ACK
@@ -141,7 +141,6 @@ static int forbiddenscan_validate_packet(const struct ip *ip_hdr, uint32_t len,
 		return 0;
 	}
 
-
 	struct tcphdr *tcp = (struct tcphdr *)((char *)ip_hdr + 4 * ip_hdr->ip_hl);
 	uint16_t sport = tcp->th_sport;
 	uint16_t dport = tcp->th_dport;
@@ -155,10 +154,12 @@ static int forbiddenscan_validate_packet(const struct ip *ip_hdr, uint32_t len,
 	if (!check_dst_port(ntohs(dport), num_ports, validation)) {
 		return 0;
 	}
-    if (htonl(tcp->th_ack) != htonl(validation[0]) + PAYLOAD_LEN) {
+    
+    if ((htonl(tcp->th_ack) != htonl(validation[0]) + PAYLOAD_LEN) &&  
+        (htonl(tcp->th_ack) != htonl(validation[0])) &&
+        (htonl(tcp->th_seq) != htonl(validation[2]))) {
         return 0;
     }
-
 
 	return 1;
 }
@@ -173,7 +174,7 @@ static void forbiddenscan_process_packet(const u_char *packet,
 	struct tcphdr *tcp =
 	    (struct tcphdr *)((char *)ip_hdr + 4 * ip_hdr->ip_hl);
 	char *payload = (char *)(&tcp[1]);
-	int mylen = ntohs(ip_hdr->ip_len);
+	int mylen = ntohs(ip_hdr->ip_len) + ETHER_LEN;
 
 	fs_add_uint64(fs, "sport", (uint64_t)ntohs(tcp->th_sport));
 	fs_add_uint64(fs, "dport", (uint64_t)ntohs(tcp->th_dport));
