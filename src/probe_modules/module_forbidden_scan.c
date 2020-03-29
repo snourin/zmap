@@ -120,7 +120,7 @@ static int forbiddenscan_make_packet2(void *buf, UNUSED size_t *buf_len,
 	tcp_header->th_ack = tcp_ack;
 	tcp_header->th_sum = 0;
 	tcp_header->th_sum =
-	    tcp_checksum(sizeof(struct tcphdr), ip_header->ip_src.s_addr,
+	    tcp_checksum(sizeof(struct tcphdr) + PAYLOAD_LEN, ip_header->ip_src.s_addr,
 			 ip_header->ip_dst.s_addr, tcp_header);
 
 	ip_header->ip_sum = 0;
@@ -184,6 +184,17 @@ static void forbiddenscan_process_packet(const u_char *packet,
 	fs_add_uint64(fs, "len", (uint64_t)mylen);
 	fs_add_uint64(fs, "flags", (uint64_t)tcp->th_flags);
 	fs_add_uint64(fs, "ipid", (uint64_t)ntohs(ip_hdr->ip_id));
+    // Attempt to track why an IP responded - did it acknolwedge our payload or not? 
+    // If it acknowledges our payload, than it is probably responding to our payload
+    // otherwise, it may just be sending us SYN/ACKs or responses
+    if (htonl(tcp->th_ack) == htonl(validation[0]) + PAYLOAD_LEN) {
+	    fs_add_uint64(fs, "validation_type", 0);
+    } else if ((htonl(tcp->th_ack) == htonl(validation[0])) ||
+               (htonl(tcp->th_seq) == htonl(validation[2]))) {
+	    fs_add_uint64(fs, "validation_type", 1);
+    } else {
+	    fs_add_uint64(fs, "validation_type", 2);
+    }
 
 	fs_add_string(fs, "classification", "", 0);
 	//fs_add_string(fs, "classification", (char *)payload, 0);
@@ -199,6 +210,7 @@ static fielddef_t myfields[] = {
     {.name = "len", .type = "int", .desc = "Packet size"},
     {.name = "flags", .type = "int", .desc = "Packet flags"},
     {.name = "ipid", .type = "int", .desc = "IP Identification"},
+    {.name = "validation_type", .type = "int", .desc = "Type of Validation"},
     {.name = "classification",
      .type = "string",
      .desc = "packet classification"},
@@ -228,4 +240,4 @@ probe_module_t module_forbidden_scan = {
 		"is considered a success.",
     .output_type = OUTPUT_TYPE_STATIC,
     .fields = myfields,
-    .numfields = 10};
+    .numfields = 11};
