@@ -23,6 +23,7 @@
 #define TOTAL_LEN sizeof(struct ip) + sizeof(struct tcphdr)
 #define TOTAL_LEN_PAYLOAD sizeof(struct ip) + sizeof(struct tcphdr) + PAYLOAD_LEN
 #define ETHER_LEN sizeof(struct ether_header)
+#define IP_LEN sizeof(struct ip)
 
 probe_module_t module_tcp_forbiddenscan;
 static uint32_t num_ports;
@@ -35,8 +36,8 @@ static int forbiddenscan_global_initialize(struct state_conf *state)
 }
 
 static int forbiddenscan_init_perthread(void *buf, macaddr_t *src, macaddr_t *gw,
-				     port_h_t dst_port,
-				     __attribute__((unused)) void **arg_ptr)
+        port_h_t dst_port,
+        __attribute__((unused)) void **arg_ptr)
 {
 	memset(buf, 0, MAX_PACKET_SIZE);
 	struct ether_header *eth_header = (struct ether_header *)buf;
@@ -68,9 +69,9 @@ static int forbiddenscan_init_perthread2(void *buf, macaddr_t *src, macaddr_t *g
 }
 
 static int forbiddenscan_make_packet(void *buf, UNUSED size_t *buf_len,
-				  ipaddr_n_t src_ip, ipaddr_n_t dst_ip, uint8_t ttl,
-				  uint32_t *validation, int probe_num,
-				  UNUSED void *arg)
+        ipaddr_n_t src_ip, ipaddr_n_t dst_ip, uint8_t ttl,
+        uint32_t *validation, int probe_num,
+        UNUSED void *arg)
 {
 	struct ether_header *eth_header = (struct ether_header *)buf;
 	struct ip *ip_header = (struct ip *)(&eth_header[1]);
@@ -130,8 +131,8 @@ static int forbiddenscan_make_packet2(void *buf, UNUSED size_t *buf_len,
 }
 
 static int forbiddenscan_validate_packet(const struct ip *ip_hdr, uint32_t len,
-				      __attribute__((unused)) uint32_t *src_ip,
-				      uint32_t *validation)
+        __attribute__((unused)) uint32_t *src_ip,
+        uint32_t *validation)
 {
 	if (ip_hdr->ip_p != IPPROTO_TCP) {
 		return 0;
@@ -165,22 +166,26 @@ static int forbiddenscan_validate_packet(const struct ip *ip_hdr, uint32_t len,
 }
 
 static void forbiddenscan_process_packet(const u_char *packet,
-				      uint32_t len,
-				      fieldset_t *fs,
-				      __attribute__((unused))
-				      uint32_t *validation)
+        uint32_t len,
+        fieldset_t *fs,
+        __attribute__((unused))
+        uint32_t *validation)
 {
 	struct ip *ip_hdr = (struct ip *)&packet[sizeof(struct ether_header)];
 	struct tcphdr *tcp =
 	    (struct tcphdr *)((char *)ip_hdr + 4 * ip_hdr->ip_hl);
 	char *payload = (char *)(&tcp[1]);
-	int mylen = ntohs(ip_hdr->ip_len) + ETHER_LEN;
+    int mylen = ntohs(ip_hdr->ip_len);
+    int payloadlen = mylen - IP_LEN - (tcp->th_off * 4);
+    mylen += ETHER_LEN;
+
 
 	fs_add_uint64(fs, "sport", (uint64_t)ntohs(tcp->th_sport));
 	fs_add_uint64(fs, "dport", (uint64_t)ntohs(tcp->th_dport));
 	fs_add_uint64(fs, "seqnum", (uint64_t)ntohl(tcp->th_seq));
 	fs_add_uint64(fs, "acknum", (uint64_t)ntohl(tcp->th_ack));
 	fs_add_uint64(fs, "window", (uint64_t)ntohs(tcp->th_win));
+    fs_add_uint64(fs, "payloadlen", (uint64_t)payloadlen);
 	fs_add_uint64(fs, "len", (uint64_t)mylen);
 	fs_add_uint64(fs, "flags", (uint64_t)tcp->th_flags);
 	fs_add_uint64(fs, "ipid", (uint64_t)ntohs(ip_hdr->ip_id));
@@ -207,16 +212,17 @@ static fielddef_t myfields[] = {
     {.name = "seqnum", .type = "int", .desc = "TCP sequence number"},
     {.name = "acknum", .type = "int", .desc = "TCP acknowledgement number"},
     {.name = "window", .type = "int", .desc = "TCP window"},
+    {.name = "payloadlen", .type = "int", .desc = "Payload Length"},
     {.name = "len", .type = "int", .desc = "Packet size"},
     {.name = "flags", .type = "int", .desc = "Packet flags"},
     {.name = "ipid", .type = "int", .desc = "IP Identification"},
     {.name = "validation_type", .type = "int", .desc = "Type of Validation"},
     {.name = "classification",
-     .type = "string",
-     .desc = "packet classification"},
+        .type = "string",
+        .desc = "packet classification"},
     {.name = "success",
-     .type = "bool",
-     .desc = "is response considered success"}};
+        .type = "bool",
+        .desc = "is response considered success"}};
 
 probe_module_t module_forbidden_scan = {
     .name = "forbidden_scan",
@@ -235,9 +241,9 @@ probe_module_t module_forbidden_scan = {
     .validate_packet = &forbiddenscan_validate_packet,
     .close = NULL,
     .helptext = "Probe module that sends a TCP PSH/ACK packet to a specific "
-		"port. Possible classifications are: synack and rst. A "
-		"RST packet is considered a failure and a packet with data"
-		"is considered a success.",
+        "port. Possible classifications are: synack and rst. A "
+        "RST packet is considered a failure and a packet with data"
+        "is considered a success.",
     .output_type = OUTPUT_TYPE_STATIC,
     .fields = myfields,
-    .numfields = 11};
+    .numfields = 12};
