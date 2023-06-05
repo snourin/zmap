@@ -586,7 +586,7 @@ int main(int argc, char *argv[])
 	SET_BOOL(zconf.quiet, quiet);
 	zconf.cooldown_secs = args.cooldown_time_arg;
 	SET_IF_GIVEN(zconf.output_filename, output_file);
-	SET_IF_GIVEN(zconf.blacklist_filename, blacklist_file);
+	SET_IF_GIVEN(zconf.blacklist_filename, blocklist_file);
 	SET_IF_GIVEN(zconf.list_of_ips_filename, list_of_ips_file);
 	SET_IF_GIVEN(zconf.probe_args, probe_args);
 	SET_IF_GIVEN(zconf.probe_ttl, probe_ttl);

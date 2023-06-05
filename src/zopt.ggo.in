@@ -18,7 +18,7 @@ option "target-port"            p "port number to scan (for TCP and UDP scans)"
 option "output-file"            o "Output file"
     typestr="name"
     optional string
-option "blacklist-file"         b "File of subnets to exclude, in CIDR notation, e.g. 192.168.0.0/16"
+option "blocklist-file"         b "File of subnets to exclude, in CIDR notation, e.g. 192.168.0.0/16"
     typestr="path"
     optional string
 option "whitelist-file"         w "File of subnets to constrain scan to, in CIDR notation, e.g. 192.168.0.0/16"

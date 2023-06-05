@@ -427,6 +427,7 @@ int send_run(sock_t st, shard_t *s)
 						}
 					} 
                     idx++;
+					sleep(5);
                     int rc2 = send_packet(st, contents2, length2, idx);
 					if (rc2 < 0) {
 						struct in_addr addr2;
