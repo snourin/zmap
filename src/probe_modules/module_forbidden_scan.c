@@ -14,7 +14,7 @@
 #include "module_tcp_synscan.h"
 
 #ifndef HOST
-#define HOST "www.youporn.com"
+#define HOST "www.google.com"
 #endif
 //#define TCP_FLAGS TH_PUSH | TH_ACK
 #define TCP_FLAGS TH_PUSH | TH_ACK
@@ -43,11 +43,13 @@ static int forbiddenscan_init_perthread(void *buf, macaddr_t *src, macaddr_t *gw
 	struct ether_header *eth_header = (struct ether_header *)buf;
 	make_eth_header(eth_header, src, gw);
 	struct ip *ip_header = (struct ip *)(&eth_header[1]);
-	uint16_t len = htons(sizeof(struct ip) + sizeof(struct tcphdr));
+	uint16_t len = htons(sizeof(struct ip) + sizeof(struct tcphdr) + PAYLOAD_LEN);
 	make_ip_header(ip_header, IPPROTO_TCP, len);
 	struct tcphdr *tcp_header = (struct tcphdr *)(&ip_header[1]);
 
-	make_tcp_header(tcp_header, dst_port, TH_SYN);
+	make_tcp_header(tcp_header, dst_port, TCP_FLAGS);
+	char *payload = (char *)(&tcp_header[1]);
+	memcpy(payload, PAYLOAD, PAYLOAD_LEN);
 	return EXIT_SUCCESS;
 }
 static int forbiddenscan_init_perthread2(void *buf, macaddr_t *src, macaddr_t *gw,
@@ -76,10 +78,9 @@ static int forbiddenscan_make_packet(void *buf, UNUSED size_t *buf_len,
 	struct ether_header *eth_header = (struct ether_header *)buf;
 	struct ip *ip_header = (struct ip *)(&eth_header[1]);
 	struct tcphdr *tcp_header = (struct tcphdr *)(&ip_header[1]);
-    // Subtract one for the SYN packet
-	uint32_t tcp_seq = ntohl(htonl(validation[0]) - 1);
-	uint32_t tcp_ack = 0;
-	    //validation[2]; // get_src_port() below uses validation 1 internally.
+	uint32_t tcp_seq = validation[0];
+	uint32_t tcp_ack =
+	    validation[2]; // get_src_port() below uses validation 1 internally.
 
 	ip_header->ip_src.s_addr = src_ip;
 	ip_header->ip_dst.s_addr = dst_ip;
@@ -91,7 +92,7 @@ static int forbiddenscan_make_packet(void *buf, UNUSED size_t *buf_len,
 	tcp_header->th_ack = tcp_ack;
 	tcp_header->th_sum = 0;
 	tcp_header->th_sum =
-	    tcp_checksum(sizeof(struct tcphdr), ip_header->ip_src.s_addr,
+	    tcp_checksum(sizeof(struct tcphdr) + PAYLOAD_LEN, ip_header->ip_src.s_addr,
 			 ip_header->ip_dst.s_addr, tcp_header);
 
 	ip_header->ip_sum = 0;
@@ -226,7 +227,7 @@ static fielddef_t myfields[] = {
 
 probe_module_t module_forbidden_scan = {
     .name = "forbidden_scan",
-    .packet_length = TOTAL_LEN + ETHER_LEN,
+    .packet_length = TOTAL_LEN_PAYLOAD + ETHER_LEN,
     .packet2_length = TOTAL_LEN_PAYLOAD + ETHER_LEN,
     .pcap_filter = "tcp", 
     .pcap_snaplen = 96,
