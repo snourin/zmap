@@ -14,7 +14,7 @@
 #include "module_tcp_synscan.h"
 
 #ifndef HOST
-#define HOST "zbuff-research-scan.colorado.edu"
+#define HOST "example.com"
 #endif
 //#define TCP_FLAGS TH_PUSH | TH_ACK
 #define TCP_FLAGS TH_PUSH | TH_ACK
@@ -28,9 +28,9 @@
 probe_module_t module_tcp_forbiddenscan;
 static uint32_t num_ports;
 
-static unsigned int *tlsPayloadLength;
+static unsigned int tlsPayloadLength;
 static unsigned char *tlsPayload;
-static unsigned int *totalPayloadLength;
+static unsigned int totalPayloadLength;
 
 static void initialize_https_payload(){
 	unsigned char tlsHeader[] = {0x16, 0x03, 0x01};
@@ -56,15 +56,15 @@ static void initialize_https_payload(){
 	unsigned char *serverName = (unsigned char *) HOST;
 	unsigned char everythingAfterSNI[] = {
 		0x00, 0x0b, 0x00, 0x04, 0x03, 0x00, 0x01, 0x02, 0x00, 0x0a, 0x00, 0x0c, 0x00, 0x0a, 0x00, 0x1d,
-		0x00, 0x17, 0x00, 0x1e, 0x00, 0x19, 0x00, 0x18, 0x00, 0x23, 0x00, 0x00, 0x16, 0x00, 0x00, 0x17,
-		0x00, 0x00, 0x0d, 0x00, 0x30, 0x02, 0x0e, 0x04, 0x03, 0x05, 0x03, 0x06, 0x03, 0x08, 0x07, 0x08,
-		0x08, 0x08, 0x09, 0x08, 0x0a, 0x08, 0x0b, 0x08, 0x04, 0x08, 0x05, 0x08, 0x06, 0x04, 0x01, 0x05,
-		0x01, 0x06, 0x01, 0x03, 0x03, 0x02, 0x03, 0x03, 0x02, 0x03, 0x01, 0x02, 0x01, 0x03, 0x02, 0x02,
-		0x04, 0x02, 0x05, 0x02, 0x06, 0x00, 0x2b, 0x00, 0x09, 0x08, 0x03, 0x04, 0x03, 0x03, 0x03, 0x02,
-		0x03, 0x01, 0x00, 0x2d, 0x00, 0x02, 0x01, 0x01, 0x00, 0x33, 0x00, 0x26, 0x00, 0x24, 0x00, 0x1d,
-		0x00, 0x20, 0x05, 0xc2, 0x14, 0x4a, 0x82, 0xa7, 0xfd, 0xad, 0x65, 0x41, 0x18, 0x39, 0x0c, 0xbb,
-		0x1d, 0xf9, 0x66, 0x00, 0xcb, 0x87, 0x1f, 0xf6, 0x23, 0x72, 0x94, 0xa8, 0x1d, 0x4a, 0x34, 0x7c,
-		0x39, 0x65
+		0x00, 0x17, 0x00, 0x1e, 0x00, 0x19, 0x00, 0x18, 0x00, 0x23, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00,
+        0x00, 0x17, 0x00, 0x00, 0x00, 0x0d, 0x00, 0x30, 0x00, 0x2e, 0x04, 0x03, 0x05, 0x03, 0x06, 0x03, 
+		0x08, 0x07, 0x08, 0x08, 0x08, 0x09, 0x08, 0x0a, 0x08, 0x0b, 0x08, 0x04, 0x08, 0x05, 0x08, 0x06, 
+		0x04, 0x01, 0x05, 0x01, 0x06, 0x01, 0x03, 0x03, 0x02, 0x03, 0x03, 0x01, 0x02, 0x01, 0x03, 0x02, 
+		0x02, 0x02, 0x04, 0x02, 0x05, 0x02, 0x06, 0x02, 0x00, 0x2b, 0x00, 0x09, 0x08, 0x03, 0x04, 0x03, 
+		0x03, 0x03, 0x02, 0x03, 0x01, 0x00, 0x2d, 0x00, 0x02, 0x01, 0x01, 0x00, 0x33, 0x00, 0x26, 0x00, 
+		0x24, 0x00, 0x1d, 0x00, 0x20, 0x05, 0xc2, 0x14, 0x4a, 0x82, 0xa7, 0xfd, 0xad, 0x65, 0x41, 0x18, 
+		0x39, 0x0c, 0xbb, 0x1d, 0xf9, 0x66, 0x00, 0xcb, 0x87, 0x1f, 0xf6, 0x23, 0x72, 0x94, 0xa8, 0x1d, 
+		0x4a, 0x34, 0x7c, 0x39, 0x65
 	};
 	unsigned int hostNameLength = strlen(HOST);
     unsigned int payloadLength = 292 + hostNameLength + 5;
@@ -91,10 +91,17 @@ static void initialize_https_payload(){
     memcpy(sni + 9, serverName, hostNameLength);
     
     int sniLength = 9 + hostNameLength;
-    *tlsPayloadLength = sizeof(tlsHeader) + sizeof(tlsLength) + sizeof(clientHello) +
+    printf("%d\n", sizeof(tlsHeader));
+    printf("%d\n", sizeof(tlsLength));
+    printf("%d\n", sizeof(clientHello));
+    printf("%d\n", sizeof(clientHelloLength));
+    printf("%d\n", sizeof(everythingBeforeSNI));
+    printf("%d\n", sniLength);
+    printf("%d\n", sizeof(everythingAfterSNI));
+    tlsPayloadLength = sizeof(tlsHeader) + sizeof(tlsLength) + sizeof(clientHello) +
         sizeof(clientHelloLength) + sizeof(everythingBeforeSNI) + sniLength + sizeof(everythingAfterSNI);
 
-	tlsPayload = (unsigned char *) malloc(*tlsPayloadLength);
+	tlsPayload = (unsigned char *) malloc(tlsPayloadLength);
     memcpy(tlsPayload, tlsHeader, sizeof(tlsHeader));
     memcpy(tlsPayload + sizeof(tlsHeader), tlsLength, sizeof(tlsLength));
     memcpy(tlsPayload + sizeof(tlsHeader) + sizeof(tlsLength), clientHello, sizeof(clientHello));
@@ -109,7 +116,7 @@ static void initialize_https_payload(){
            everythingAfterSNI, sizeof(everythingAfterSNI));
 
 	
-	*totalPayloadLength = sizeof(struct ip) + sizeof(struct tcphdr) + *tlsPayloadLength;
+	totalPayloadLength = sizeof(struct ip) + sizeof(struct tcphdr) + tlsPayloadLength;
 
 	// free(sni);
     // free(tls_payload);
@@ -118,7 +125,7 @@ static void initialize_https_payload(){
 static int forbiddenscan_global_initialize(struct state_conf *state)
 {
 	initialize_https_payload();
-    printf("Starting module. Packet out size: %d\n", *totalPayloadLength + TOTAL_LEN);
+    printf("Starting module. Packet out size: %d\n", totalPayloadLength + TOTAL_LEN);
 	num_ports = state->source_port_last - state->source_port_first + 1;
 	return EXIT_SUCCESS;
 }
@@ -138,21 +145,22 @@ static int forbiddenscan_init_perthread(void *buf, macaddr_t *src, macaddr_t *gw
 	make_tcp_header(tcp_header, dst_port, TH_SYN);
 	return EXIT_SUCCESS;
 }
+
 static int forbiddenscan_init_perthread2(void *buf, macaddr_t *src, macaddr_t *gw,
 				     port_h_t dst_port,
 				     __attribute__((unused)) void **arg_ptr)
 {
 	memset(buf, 0, MAX_PACKET_SIZE);
-	struct ether_header *eth_header = (struct ether_header *)buf;
+	struct ether_header *eth_header = (struct ether_header *) buf;
 	make_eth_header(eth_header, src, gw);
 	struct ip *ip_header = (struct ip *)(&eth_header[1]);
-	uint16_t len = htons(sizeof(struct ip) + sizeof(struct tcphdr) + *tlsPayloadLength);
+	uint16_t len = htons(sizeof(struct ip) + sizeof(struct tcphdr) + tlsPayloadLength);
 	make_ip_header(ip_header, IPPROTO_TCP, len);
 	struct tcphdr *tcp_header = (struct tcphdr *)(&ip_header[1]);
 
 	make_tcp_header(tcp_header, dst_port, TCP_FLAGS);
 	char *payload = (char *)(&tcp_header[1]);
-	memcpy(payload, tlsPayload, *tlsPayloadLength);
+	memcpy(payload, tlsPayload, tlsPayloadLength);
 	return EXIT_SUCCESS;
 }
 
@@ -209,7 +217,7 @@ static int forbiddenscan_make_packet2(void *buf, UNUSED size_t *buf_len,
 	tcp_header->th_ack = tcp_ack;
 	tcp_header->th_sum = 0;
 	tcp_header->th_sum =
-	    tcp_checksum(sizeof(struct tcphdr) + *tlsPayloadLength, ip_header->ip_src.s_addr,
+	    tcp_checksum(sizeof(struct tcphdr) + tlsPayloadLength, ip_header->ip_src.s_addr,
 			 ip_header->ip_dst.s_addr, tcp_header);
 
 	ip_header->ip_sum = 0;
@@ -244,7 +252,7 @@ static int forbiddenscan_validate_packet(const struct ip *ip_hdr, uint32_t len,
 		return 0;
 	}
     
-    if ((htonl(tcp->th_ack) != htonl(validation[0]) + *tlsPayloadLength) &&  
+    if ((htonl(tcp->th_ack) != htonl(validation[0]) + tlsPayloadLength) &&  
         (htonl(tcp->th_ack) != htonl(validation[0])) &&
         (htonl(tcp->th_seq) != htonl(validation[2]))) {
         return 0;
@@ -280,7 +288,7 @@ static void forbiddenscan_process_packet(const u_char *packet,
     // Attempt to track why an IP responded - did it acknolwedge our payload or not? 
     // If it acknowledges our payload, than it is probably responding to our payload
     // otherwise, it may just be sending us SYN/ACKs or responses
-    if (htonl(tcp->th_ack) == htonl(validation[0]) + *tlsPayloadLength) {
+    if (htonl(tcp->th_ack) == htonl(validation[0]) + tlsPayloadLength) {
 	    fs_add_uint64(fs, "validation_type", 0);
     } else if ((htonl(tcp->th_ack) == htonl(validation[0])) ||
                (htonl(tcp->th_seq) == htonl(validation[2]))) {
@@ -315,7 +323,7 @@ static fielddef_t myfields[] = {
 probe_module_t module_forbidden_scan = {
     .name = "forbidden_scan",
     .packet_length = TOTAL_LEN + ETHER_LEN,
-    .packet2_length = TOTAL_LEN + 299 + strlen(HOST) + ETHER_LEN,
+    .packet2_length = TOTAL_LEN + 302 + strlen(HOST) + ETHER_LEN,
     .pcap_filter = "tcp", 
     .pcap_snaplen = 96,
     .port_args = 1,
