@@ -91,13 +91,6 @@ static void initialize_https_payload(){
     memcpy(sni + 9, serverName, hostNameLength);
     
     int sniLength = 9 + hostNameLength;
-    printf("%d\n", sizeof(tlsHeader));
-    printf("%d\n", sizeof(tlsLength));
-    printf("%d\n", sizeof(clientHello));
-    printf("%d\n", sizeof(clientHelloLength));
-    printf("%d\n", sizeof(everythingBeforeSNI));
-    printf("%d\n", sniLength);
-    printf("%d\n", sizeof(everythingAfterSNI));
     tlsPayloadLength = sizeof(tlsHeader) + sizeof(tlsLength) + sizeof(clientHello) +
         sizeof(clientHelloLength) + sizeof(everythingBeforeSNI) + sniLength + sizeof(everythingAfterSNI);
 
