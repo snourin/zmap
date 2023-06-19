@@ -430,6 +430,7 @@ int send_run(sock_t st, shard_t *s)
 
 		// Get the next IP to scan
 		current_ip = shard_get_next_ip(s);
+		log_debug("send", "CURRENT IP:%d", (unsigned int) current_ip);
 		if (zconf.list_of_ips_filename &&
 		    current_ip != ZMAP_SHARD_DONE) {
 			// If we have a list of IPs bitmap, ensure the next IP

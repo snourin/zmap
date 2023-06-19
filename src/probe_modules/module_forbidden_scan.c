@@ -14,10 +14,10 @@
 #include "module_tcp_synscan.h"
 
 #ifndef HOST
-#define HOST "freedomhouse.org"
+#define HOST "twitter.com"
 #endif
 //#define TCP_FLAGS TH_PUSH | TH_ACK
-#define TCP_FLAGS TH_SYN
+#define TCP_FLAGS TH_PUSH | TH_ACK
 #define PAYLOAD "GET / HTTP/1.1\r\nHost: " HOST "\r\n\r\n"
 #define PAYLOAD_LEN strlen(PAYLOAD) 
 

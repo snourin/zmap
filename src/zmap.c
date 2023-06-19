@@ -86,10 +86,21 @@ const char *default_help_text =
 static void *start_send(void *arg)
 {
 	send_arg_t *s = (send_arg_t *)arg;
+	// send_arg_t *s2 = malloc(sizeof(send_arg_t));
+	// memcpy(s2, s, sizeof(send_arg_t));
+
+	uint64_t initial_ip = s->shard->current;
 	log_debug("zmap", "Pinning a send thread to core %u", s->cpu);
 	set_cpu(s->cpu);
 	send_run(s->sock, s->shard);
+
+	sleep(7);
+
+	s->shard->current = initial_ip;
+	send_run(s->sock, s->shard);
+
 	free(s);
+	// free(s2);
 	return NULL;
 }
 
@@ -586,7 +597,7 @@ int main(int argc, char *argv[])
 	SET_BOOL(zconf.quiet, quiet);
 	zconf.cooldown_secs = args.cooldown_time_arg;
 	SET_IF_GIVEN(zconf.output_filename, output_file);
-	SET_IF_GIVEN(zconf.blacklist_filename, blacklist_file);
+	SET_IF_GIVEN(zconf.blacklist_filename, blocklist_file);
 	SET_IF_GIVEN(zconf.list_of_ips_filename, list_of_ips_file);
 	SET_IF_GIVEN(zconf.probe_args, probe_args);
 	SET_IF_GIVEN(zconf.probe_ttl, probe_ttl);
