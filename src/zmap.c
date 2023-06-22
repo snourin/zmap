@@ -86,10 +86,8 @@ const char *default_help_text =
 static void *start_send(void *arg)
 {
 	send_arg_t *s = (send_arg_t *)arg;
-	// send_arg_t *s2 = malloc(sizeof(send_arg_t));
-	// memcpy(s2, s, sizeof(send_arg_t));
-
 	uint64_t initial_ip = s->shard->current;
+	
 	log_debug("zmap", "Pinning a send thread to core %u", s->cpu);
 	set_cpu(s->cpu);
 	send_run(s->sock, s->shard);
@@ -100,7 +98,6 @@ static void *start_send(void *arg)
 	send_run(s->sock, s->shard);
 
 	free(s);
-	// free(s2);
 	return NULL;
 }
 

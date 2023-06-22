@@ -127,7 +127,7 @@ iterator_t *send_init(void)
 	}
 	// convert specified bandwidth to packet rate
 	if (zconf.bandwidth > 0) {
-		size_t pkt_len = zconf.probe_module->packet_length + zconf.probe_module->packet2_length;
+		size_t pkt_len = zconf.probe_module->packet_length;
 		pkt_len *= 8;
 		// 7 byte MAC preamble, 1 byte Start frame, 4 byte CRC, 12 byte
 		// inter-frame gap
@@ -220,9 +220,7 @@ int send_run(sock_t st, shard_t *s)
 	pthread_mutex_lock(&send_mutex);
 	// Allocate a buffer to hold the outgoing packet
 	char buf[MAX_PACKET_SIZE];
-	char buf2[MAX_PACKET_SIZE];
 	memset(buf, 0, MAX_PACKET_SIZE);
-	memset(buf2, 0, MAX_PACKET_SIZE);
 
 	// OS specific per-thread init
 	if (send_run_init(st)) {
@@ -240,25 +238,11 @@ int send_run(sock_t st, shard_t *s)
 			p += 3;
 		}
 	}
-    char mac_buf2[(ETHER_ADDR_LEN * 2) + (ETHER_ADDR_LEN - 1) + 1];
-	*p = mac_buf2;
-	for (int i = 0; i < ETHER_ADDR_LEN; i++) {
-		if (i == ETHER_ADDR_LEN - 1) {
-			snprintf(p, 3, "%.2x", zconf.hw_mac[i]);
-			p += 2;
-		} else {
-			snprintf(p, 4, "%.2x:", zconf.hw_mac[i]);
-			p += 3;
-		}
-	}
 	log_debug("send", "source MAC address %s", mac_buf);
 	void *probe_data;
 	if (zconf.probe_module->thread_initialize) {
 		zconf.probe_module->thread_initialize(
 		    buf, zconf.hw_mac, zconf.gw_mac, zconf.target_port,
-		    &probe_data);
-        zconf.probe_module->thread_initialize2(
-		    buf2, zconf.hw_mac, zconf.gw_mac, zconf.target_port,
 		    &probe_data);
 	}
 	pthread_mutex_unlock(&send_mutex);
@@ -392,11 +376,6 @@ int send_run(sock_t st, shard_t *s)
 			zconf.probe_module->make_packet(buf, &length, src_ip,
 							current_ip, ttl, validation,
 							i, probe_data);
-            size_t length2 = zconf.probe_module->packet2_length;
-			zconf.probe_module->make_packet2(buf2, &length2, src_ip,
-							current_ip, ttl, validation,
-							i, probe_data);
-
 			if (length > MAX_PACKET_SIZE) {
 				log_fatal(
 				    "send",
@@ -406,45 +385,39 @@ int send_run(sock_t st, shard_t *s)
 			if (zconf.dryrun) {
 				lock_file(stdout);
 				zconf.probe_module->print_packet(stdout, buf);
-				zconf.probe_module->print_packet(stdout, buf2);
 				unlock_file(stdout);
 			} else {
-				void *contents = buf + zconf.send_ip_pkts * sizeof(struct ether_header);
-				length -= (zconf.send_ip_pkts * sizeof(struct ether_header));
-                void *contents2 = buf2 + zconf.send_ip_pkts * sizeof(struct ether_header);
-				length2 -= (zconf.send_ip_pkts * sizeof(struct ether_header));
-				
+				void *contents =
+				    buf + zconf.send_ip_pkts *
+					      sizeof(struct ether_header);
+				length -= (zconf.send_ip_pkts *
+					   sizeof(struct ether_header));
 				int any_sends_successful = 0;
 				for (int i = 0; i < attempts; ++i) {
-					int rc = send_packet(st, contents, length, idx);
+					int rc = send_packet(st, contents,
+							     length, idx);
 					if (rc < 0) {
 						struct in_addr addr;
 						addr.s_addr = current_ip;
-						char addr_str_buf[INET_ADDRSTRLEN];
-						const char *addr_str = inet_ntop(AF_INET, &addr, addr_str_buf, INET_ADDRSTRLEN);
+						char addr_str_buf
+						    [INET_ADDRSTRLEN];
+						const char *addr_str =
+						    inet_ntop(AF_INET, &addr,
+							      addr_str_buf,
+							      INET_ADDRSTRLEN);
 						if (addr_str != NULL) {
-							log_debug("send","send_packet failed for %s. %s", addr_str, strerror(errno));
+							log_debug(
+							    "send",
+							    "send_packet failed for %s. %s",
+							    addr_str,
+							    strerror(errno));
 						}
-					} 
-                    idx++;
-					sleep(5);
-                    int rc2 = send_packet(st, contents2, length2, idx);
-					if (rc2 < 0) {
-						struct in_addr addr2;
-						addr2.s_addr = current_ip;
-						char addr_str_buf2[INET_ADDRSTRLEN];
-						const char *addr_str2 = inet_ntop(AF_INET, &addr2, addr_str_buf2, INET_ADDRSTRLEN);
-						if (addr_str2 != NULL) {
-							log_debug("send","send_packet failed for %s. %s", addr_str2, strerror(errno));
-						}
-					} 
-                    if (rc2 >= 0 && rc >= 0) {
+					} else {
 						any_sends_successful = 1;
 						break;
 					}
 				}
 				if (!any_sends_successful) {
-					s->state.failures++;
 					s->state.failures++;
 				}
 				idx++;
@@ -457,7 +430,6 @@ int send_run(sock_t st, shard_t *s)
 
 		// Get the next IP to scan
 		current_ip = shard_get_next_ip(s);
-		log_debug("send", "CURRENT IP:%d", (unsigned int) current_ip);
 		if (zconf.list_of_ips_filename &&
 		    current_ip != ZMAP_SHARD_DONE) {
 			// If we have a list of IPs bitmap, ensure the next IP
@@ -466,7 +438,10 @@ int send_run(sock_t st, shard_t *s)
 				current_ip = shard_get_next_ip(s);
 				s->state.tried_sent++;
 				if (current_ip == ZMAP_SHARD_DONE) {
-					log_debug("send", "send thread %hhu shard finished in get_next_ip_loop depleted", s->thread_id);
+					log_debug(
+					    "send",
+					    "send thread %hhu shard finished in get_next_ip_loop depleted",
+					    s->thread_id);
 					goto cleanup;
 				}
 			}
