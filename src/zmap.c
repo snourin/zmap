@@ -86,18 +86,95 @@ const char *default_help_text =
 static void *start_send(void *arg)
 {
 	send_arg_t *s = (send_arg_t *)arg;
-	uint64_t initial_ip = s->shard->current;
+
+	// Create a new shard struct for the second run of zmap
 	
+	struct shard_state *second_run_shard_state = malloc(sizeof(struct shard_state));
+	memcpy(second_run_shard_state, &(s->shard->state), (sizeof(struct shard_state)));
+
+	struct shard_params *second_run_shard_params = malloc(sizeof(struct shard_params));
+	memcpy(second_run_shard_params, &(s->shard->params), sizeof(struct shard_params));
+
+	shard_t *second_run_shard = malloc(sizeof(shard_t));
+	second_run_shard->state = *second_run_shard_state;
+	second_run_shard->params = *second_run_shard_params;
+	second_run_shard->current = s->shard->current;
+	second_run_shard->thread_id = s->shard->thread_id;
+	second_run_shard->cb = s->shard->cb;
+	second_run_shard->arg = s->shard->arg;
+
 	log_debug("zmap", "Pinning a send thread to core %u", s->cpu);
 	set_cpu(s->cpu);
-	send_run(s->sock, s->shard);
 
-	sleep(7);
+	uint64_t current_ip;
+	if (s->shard->current == 0){
+		current_ip = 0;
+	}
+	else{
+		current_ip = shard_get_cur_ip(s->shard);
+	}
 
-	s->shard->current = initial_ip;
-	send_run(s->sock, s->shard);
+	while (current_ip != ZMAP_SHARD_DONE){
+		// First run's turn, get the IP address the first run 
+		// will start with as this will be the starting point of
+		// the second run
+		uint64_t initial_ip = s->shard->current;
+
+		// Calculate what the time will be five seconds from now
+		struct timeval tv1;
+		gettimeofday(&tv1, NULL);
+		time_t five_secs_from_now = tv1.tv_sec + 5;
+
+		// Execute the first run, which will stop either when five seconds 
+		// from now has passed or if all of the IP addresses have been scanned
+		send_run(s->sock, s->shard, five_secs_from_now, ZMAP_SHARD_DONE);
+		
+		// Handle edge case, which only occurs when first run reaches
+		// ZMAP_SHARD_DONE and 5 seconds has not passed yet, in which case we	
+		// get the time again, check if it's less than five seconds from the 
+		// first run and if so, sleep the remainder amount
+
+		// Get the IP that the first run finished with
+		uint64_t intermediate_ip;
+		if (s->shard->current == 0){
+			intermediate_ip = 0;
+		}
+		else{
+			intermediate_ip = shard_get_cur_ip(s->shard);
+		}
+
+		if (intermediate_ip == ZMAP_SHARD_DONE){
+			struct timeval tv2;
+			gettimeofday(&tv2, NULL);
+			
+			if ((five_secs_from_now - tv2.tv_sec) > 0){
+
+				// Sleep the time remaining and one more second (more tolerance purposes) 
+				// to reach five seconds after the first run
+				sleep((five_secs_from_now - tv2.tv_sec) + 1);
+			}
+		}
+
+		// Now it is time for the second run. Set the second run's shard initial ip
+		// to the IP the first run started off with and ensure that the second run
+		// finishes at the IP that the first run finished with
+      	second_run_shard->current = initial_ip;
+      	send_run(s->sock, second_run_shard, 0, intermediate_ip);
+
+		current_ip = intermediate_ip;
+	}
+
+	// Cleanup the thread for the two runs
+	s->shard->cb(s->shard->thread_id, s->shard->arg);
+	if (zconf.dryrun) {
+		lock_file(stdout);
+		fflush(stdout);
+		unlock_file(stdout);
+	}
+	log_debug("send", "thread %hu cleanly finished", s->shard->thread_id);
 
 	free(s);
+	free(second_run_shard);
 	return NULL;
 }
 

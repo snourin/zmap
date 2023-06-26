@@ -60,9 +60,7 @@ iterator_t *iterator_init(uint8_t num_threads, uint16_t shard,
 			  uint16_t num_shards)
 {
 	uint64_t num_addrs = blacklist_count_allowed();
-	num_addrs = 256;
 	iterator_t *it = xmalloc(sizeof(struct iterator));
-	log_debug("iterator", "Number of Addresses: %d", num_addrs);
 	const cyclic_group_t *group = get_group(num_addrs);
 	if (num_addrs > (1LL << 32)) {
 		zsend.max_index = 0xFFFFFFFF;

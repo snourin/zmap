@@ -214,7 +214,7 @@ static inline ipaddr_n_t get_src_ip(ipaddr_n_t dst, int local_offset)
 }
 
 // one sender thread
-int send_run(sock_t st, shard_t *s)
+int send_run(sock_t st, shard_t *s, time_t time_to_stop, uint64_t ip_to_stop)
 {
 	log_debug("send", "send thread started");
 	pthread_mutex_lock(&send_mutex);
@@ -277,7 +277,15 @@ int send_run(sock_t st, shard_t *s)
 		}
 	}
 	// Get the initial IP to scan.
-	uint32_t current_ip = shard_get_cur_ip(s);
+	//uint32_t current_ip = shard_get_cur_ip(s);
+
+	uint32_t current_ip;
+	if (s->current == 0){
+		current_ip = 0;
+	}
+	else{
+		current_ip = shard_get_cur_ip(s);
+	}
 
 	// If provided a list of IPs to scan, then the first generated address
 	// might not be on that list. Iterate until the current IP is one the
@@ -291,7 +299,8 @@ int send_run(sock_t st, shard_t *s)
 				    "send",
 				    "never made it to send loop in send thread %i",
 				    s->thread_id);
-				goto cleanup;
+				return EXIT_SUCCESS;
+				//goto cleanup;
 			}
 		}
 	}
@@ -428,6 +437,24 @@ int send_run(sock_t st, shard_t *s)
 		s->state.sent++;
 		s->state.tried_sent++;
 
+		// Get the current time
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+
+		// If this run is supposed to stop based on time and the 
+		// current time is past the time to stop, then return
+		if ((time_to_stop != 0) & ((tv.tv_sec - time_to_stop) > 0)){
+			return EXIT_SUCCESS;
+		}
+		// If this run is supposed to stop based on IP address,
+		// check if the IP address we just sent packets to is the IP 
+		// address to stop at and if so, return
+		else if (time_to_stop == 0){
+			if (current_ip == ip_to_stop){
+				return EXIT_SUCCESS;
+			}
+		}
+
 		// Get the next IP to scan
 		current_ip = shard_get_next_ip(s);
 		if (zconf.list_of_ips_filename &&
@@ -442,7 +469,8 @@ int send_run(sock_t st, shard_t *s)
 					    "send",
 					    "send thread %hhu shard finished in get_next_ip_loop depleted",
 					    s->thread_id);
-					goto cleanup;
+					return EXIT_SUCCESS;
+					//goto cleanup;
 				}
 			}
 		}

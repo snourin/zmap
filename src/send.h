@@ -13,6 +13,6 @@
 #include "socket.h"
 
 iterator_t *send_init(void);
-int send_run(sock_t, shard_t *);
+int send_run(sock_t, shard_t *, time_t, uint64_t);
 
 #endif // SEND_H
