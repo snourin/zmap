@@ -14,7 +14,7 @@
 #include "module_tcp_synscan.h"
 
 #ifndef HOST
-#define HOST "freedomhouse.org"
+#define HOST "example.com"
 #endif
 #define TCP_FLAGS TH_PUSH | TH_ACK
 //#define TCP_FLAGS TH_SYN
@@ -91,7 +91,7 @@ static int forbiddenscan_validate_packet(const struct ip *ip_hdr, uint32_t len,
     if (ip_hdr->ip_p != IPPROTO_TCP) {
         return 0;
     }
-    if ((4 * ip_hdr->ip_hl + sizeof(struct tcphdr)) + 1 > len) {
+    if ((4 * ip_hdr->ip_hl + sizeof(struct tcphdr)) > len) {
         // buffer not large enough to contain expected tcp header 
         return 0;
     }
