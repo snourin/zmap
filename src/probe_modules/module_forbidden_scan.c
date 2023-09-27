@@ -16,7 +16,7 @@
 #ifndef HOST
 #define HOST "example.com"
 #endif
-#define TCP_FLAGS TH_PUSH | TH_ACK
+#define TCP_FLAGS TH_PUSH
 //#define TCP_FLAGS TH_SYN
 #define PAYLOAD "GET / HTTP/1.1\r\nHost: " HOST "\r\n\r\n"
 #define PAYLOAD_LEN strlen(PAYLOAD) 
