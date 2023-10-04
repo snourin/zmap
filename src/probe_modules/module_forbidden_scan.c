@@ -17,7 +17,7 @@
 #define HOST "www.youporn.com"
 #endif
 //#define TCP_FLAGS TH_PUSH | TH_ACK
-#define TCP_FLAGS TH_PUSH | TH_ACK
+#define TCP_FLAGS TH_PUSH
 #define PAYLOAD "GET / HTTP/1.1\r\nHost: " HOST "\r\n\r\n"
 #define PAYLOAD_LEN strlen(PAYLOAD) 
 #define TOTAL_LEN sizeof(struct ip) + sizeof(struct tcphdr)
